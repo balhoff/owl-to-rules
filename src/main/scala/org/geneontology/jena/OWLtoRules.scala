@@ -16,7 +16,7 @@ import org.semanticweb.owlapi.model.parameters.Imports
 
 import com.typesafe.scalalogging.LazyLogging
 
-object OWLtoRules extends LazyLogging with App {
+object OWLtoRules extends LazyLogging {
 
   def translate(ont: OWLOntology, includeImportsClosure: Imports, translateTbox: Boolean, translateRbox: Boolean, translateAbox: Boolean): Set[Rule] = {
     var axioms = ParSet.empty[OWLAxiom]
