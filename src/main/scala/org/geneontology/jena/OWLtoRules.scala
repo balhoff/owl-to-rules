@@ -152,11 +152,10 @@ object OWLtoRules extends LazyLogging with App {
   private def translateExpression(ce: OWLClassExpression, subject: String, incrementer: AtomicInteger): Atoms = ce match {
     case OWLThing   => NoAtoms
     case Class(iri) => Intersection(Set(s"($subject rdf:type <$iri>)"))
-    case ObjectSomeValuesFrom(property, filler) => {
+    case ObjectSomeValuesFrom(property, filler) =>
       val nextSubject = makeSubject(incrementer.incrementAndGet())
       val triple = Intersection(Set(rel(subject, property, nextSubject)))
       combine(triple, translateExpression(filler, nextSubject, incrementer))
-    }
     case ObjectIntersectionOf(operands) => operands.map(translateExpression(_, subject, incrementer))
       .fold(NoAtoms)(combine)
     case ObjectHasValue(property, NamedIndividual(ind)) => Intersection(Set(rel(subject, property, s"<$ind>")))
