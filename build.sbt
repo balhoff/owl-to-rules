@@ -5,6 +5,22 @@ name          := "owl-to-rules"
 
 version       := "0.0.1-SNAPSHOT"
 
+publishMavenStyle := true
+
+publishTo := {
+    val nexus = "https://oss.sonatype.org/"
+    if (isSnapshot.value)
+        Some("snapshots" at nexus + "content/repositories/snapshots")
+    else
+        Some("releases"  at nexus + "service/local/staging/deploy/maven2")
+}
+
+publishArtifact in Test := false
+
+licenses := Seq("BSD-3-Clause" -> url("https://opensource.org/licenses/BSD-3-Clause"))
+
+homepage := Some(url("https://github.com/balhoff/owl-to-rules"))
+
 scalaVersion  := "2.11.8"
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
@@ -21,3 +37,17 @@ libraryDependencies ++= {
     "org.codehaus.groovy"         %  "groovy-all"          % "2.4.6"
   )
 }
+
+pomExtra := (
+    <scm>
+        <url>git@github.com:balhoff/owl-to-rules.git</url>
+        <connection>scm:git:git@github.com:balhoff/owl-to-rules.git</connection>
+    </scm>
+    <developers>
+        <developer>
+            <id>balhoff</id>
+            <name>Jim Balhoff</name>
+            <email>jim@balhoff.org</email>
+        </developer>
+    </developers>
+)
