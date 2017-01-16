@@ -27,14 +27,19 @@ scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
 scalacOptions in Test ++= Seq("-Yrangepos")
 
+javaOptions in Test += s"""-Djava.library.path=${baseDirectory.value / "native"}"""
+
+fork in Test := true
+
 libraryDependencies ++= {
   Seq(
-    "net.sourceforge.owlapi"      %  "owlapi-distribution" % "4.2.7",
-    "org.apache.jena"             %  "apache-jena-libs"    % "3.1.1" pomOnly(),
-    "org.phenoscape"              %% "scowl"               % "1.2.1",
-    "com.typesafe.scala-logging"  %% "scala-logging"       % "3.4.0",
-    "ch.qos.logback"              %  "logback-classic"     % "1.1.7",
-    "org.codehaus.groovy"         %  "groovy-all"          % "2.4.6"
+    "net.sourceforge.owlapi"      %  "owlapi-distribution"    % "4.2.7",
+    "org.apache.jena"             %  "apache-jena-libs"       % "3.1.1" pomOnly(),
+    "org.phenoscape"              %% "scowl"                  % "1.2.1",
+    "com.typesafe.scala-logging"  %% "scala-logging"          % "3.4.0",
+    "ch.qos.logback"              %  "logback-classic"        % "1.1.7",
+    "org.codehaus.groovy"         %  "groovy-all"             % "2.4.6",
+    "org.scalatest"               %% "scalatest"              % "3.0.1" % Test
   )
 }
 
