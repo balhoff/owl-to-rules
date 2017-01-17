@@ -48,6 +48,7 @@ class TestRules extends UnitSpec {
     val ontology = manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream(ontologyFile))
     val rules = OWLtoRules.translate(ontology, Imports.INCLUDED, true, true, true)
     val reasoner = new GenericRuleReasoner(rules.toList)
+    reasoner.setMode(GenericRuleReasoner.FORWARD_RETE)
     val dataModel = ModelFactory.createDefaultModel()
     dataModel.read(this.getClass.getResourceAsStream(dataFile), "", "ttl")
     val infModel = ModelFactory.createInfModel(reasoner, dataModel)
