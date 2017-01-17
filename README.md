@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/balhoff/owl-to-rules.svg?branch=master)](https://travis-ci.org/balhoff/owl-to-rules)
+
 # owl-to-rules
 
 Translation of OWL 2 RL axioms into Jena rules.
