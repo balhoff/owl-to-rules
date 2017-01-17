@@ -22,34 +22,42 @@ class TestRules extends UnitSpec {
   private val OWLThing = OWL2.Thing.getURI
 
   "Jena rules" should "infer the same triples as FaCT++" in {
-    val file = "57c82fad00000639.ttl"
+    compare("57c82fad00000639.ttl", "ro-merged.owl")
+    compare("test1.ttl", "test1.ttl")
+  }
+
+  def compare(dataFile: String, ontologyFile: String): Unit = {
     val asserted = {
       val model = ModelFactory.createDefaultModel()
-      model.read(this.getClass.getResourceAsStream(file), "", "ttl")
-      model.listStatements().toSet.toSet
+      model.read(this.getClass.getResourceAsStream(dataFile), "", "ttl")
+      filterStatements(model.listStatements().toSet.toSet)
     }
-    val jena = runJenaRules(file)
-    val fact = runFactPlusPlus(file)
+    val jena = runJenaRules(dataFile, ontologyFile)
+    val fact = runFactPlusPlus(dataFile, ontologyFile)
     jena.size should be > asserted.size
     fact.size should be > asserted.size
+    println("Not in jena: ")
+    (fact -- jena).foreach(println)
+    println("Not in fact: ")
+    (jena -- fact).foreach(println)
     jena shouldEqual fact
   }
 
-  def runJenaRules(filename: String): Set[Statement] = {
+  def runJenaRules(dataFile: String, ontologyFile: String): Set[Statement] = {
     val manager = OWLManager.createOWLOntologyManager()
-    val ro = manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream("ro-merged.owl"))
-    val rules = OWLtoRules.translate(ro, Imports.INCLUDED, true, true, true)
+    val ontology = manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream(ontologyFile))
+    val rules = OWLtoRules.translate(ontology, Imports.INCLUDED, true, true, true)
     val reasoner = new GenericRuleReasoner(rules.toList)
     val dataModel = ModelFactory.createDefaultModel()
-    dataModel.read(this.getClass.getResourceAsStream(filename), "", "ttl")
+    dataModel.read(this.getClass.getResourceAsStream(dataFile), "", "ttl")
     val infModel = ModelFactory.createInfModel(reasoner, dataModel)
     filterStatements(infModel.listStatements().toSet.toSet)
   }
 
-  def runFactPlusPlus(filename: String): Set[Statement] = {
+  def runFactPlusPlus(dataFile: String, ontologyFile: String): Set[Statement] = {
     val manager = OWLManager.createOWLOntologyManager()
-    manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream("ro-merged.owl"))
-    val ontology = manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream(filename))
+    if (ontologyFile != dataFile) manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream(ontologyFile))
+    val ontology = manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream(dataFile))
     val reasoner = new FaCTPlusPlusReasonerFactory().createReasoner(ontology)
     val generator = new InferredOntologyGenerator(reasoner, List(new InferredPropertyAssertionGenerator(), new InferredClassAssertionAxiomGenerator()))
     generator.fillOntology(manager.getOWLDataFactory, ontology)

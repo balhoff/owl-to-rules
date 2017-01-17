@@ -31,9 +31,6 @@ object OWLtoRules extends LazyLogging {
     case SubClassOf(_, ObjectUnionOf(operands), superClass) =>
       operands.flatMap(ce => translateAxiom(SubClassOf(ce, superClass)))
 
-    case SubClassOf(_, ObjectOneOf(operands), superClass) =>
-      operands.flatMap(ind => translateAxiom(ClassAssertion(superClass, ind))) //TODO class assertions
-
     case SubClassOf(_, subClass, ObjectIntersectionOf(operands)) => for {
       operand <- operands
       rule <- translateAxiom(SubClassOf(subClass, operand))
@@ -45,7 +42,12 @@ object OWLtoRules extends LazyLogging {
     case SubClassOf(_, subClass, ObjectComplementOf(ce)) =>
       translateAxiom(SubClassOf(ObjectIntersectionOf(subClass, ce), OWLNothing))
 
-    case SubClassOf(_, subClass, superClass @ Class(_)) =>
+    case SubClassOf(_, subClass, ObjectMaxCardinality(max, pe, ce)) => Set.empty //TODO
+
+    case SubClassOf(_, ObjectOneOf(operands), superClass) =>
+      operands.flatMap(ind => translateAxiom(ClassAssertion(superClass, ind)))
+
+    case SubClassOf(_, subClass, superClass) if headOkay(superClass) =>
       val level = 0
       val incrementer = new AtomicInteger(level)
       val subject = makeSubject(level)
@@ -71,13 +73,27 @@ object OWLtoRules extends LazyLogging {
       rule <- translateAxiom(SubClassOf(ObjectIntersectionOf(pair.toSet), OWLNothing))
     } yield rule).toSet
 
+    case ClassAssertion(_, Class(cls), NamedIndividual(ind)) => Set(Rule.parseRule(s"[ -> (<$ind> rdf:type <$cls>) ]"))
+
+    case ClassAssertion(_, ObjectHasValue(prop, NamedIndividual(objIRI)), NamedIndividual(subjIRI)) =>
+      val subj = s"<$subjIRI>"
+      val obj = s"<$objIRI>"
+      Set(Rule.parseRule(s"[ -> ${rel(subj, prop, obj)} ]"))
+
+    case ClassAssertion(_, ce, ind @ NamedIndividual(_)) => translateAxiom(SubClassOf(ObjectOneOf(ind), ce))
+
+    case ObjectPropertyAssertion(_, prop, NamedIndividual(subjIRI), NamedIndividual(objIRI)) =>
+      val subj = s"<$subjIRI>"
+      val obj = s"<$objIRI>"
+      Set(Rule.parseRule(s"[ -> ${rel(subj, prop, obj)} ]"))
+
     case ObjectPropertyDomain(_, p, ce) => translateAxiom(SubClassOf((p some OWLThing), ce))
 
     case ObjectPropertyRange(_, p, ce)  => translateAxiom(SubClassOf((p.getInverseProperty some OWLThing), ce))
 
     case SubObjectPropertyOf(_, p, q) =>
       val (x, y) = ("?x", "?y")
-      Set(Rule.parseRule(s"[$name: ${rel(x, p, y)} -> ${rel(x, q, y)} ]"))
+      Set(Rule.parseRule(s"[ ${rel(x, p, y)} -> ${rel(x, q, y)} ]"))
 
     case EquivalentObjectProperties(_, operands) => for {
       superProp <- operands
@@ -91,37 +107,37 @@ object OWLtoRules extends LazyLogging {
       q = pair(1)
     } yield {
       val (x, y) = ("?x", "?y")
-      Rule.parseRule(s"[$name: ${rel(x, p, y)} ${rel(x, q, y)} -> ($x rdf:type owl:Nothing) ($y rdf:type owl:Nothing) ]")
+      Rule.parseRule(s"[ ${rel(x, p, y)} ${rel(x, q, y)} -> ($x rdf:type owl:Nothing) ($y rdf:type owl:Nothing) ]")
     }).toSet
 
     case InverseObjectProperties(_, p, q) =>
       val (x, y) = ("?x", "?y")
-      Set(Rule.parseRule(s"[$name: ${rel(x, p, y)} -> ${rel(y, q, x)} ]"),
-        Rule.parseRule(s"[$name: ${rel(x, q, y)} -> ${rel(y, p, x)} ]"))
+      Set(Rule.parseRule(s"[ ${rel(x, p, y)} -> ${rel(y, q, x)} ]"),
+        Rule.parseRule(s"[ ${rel(x, q, y)} -> ${rel(y, p, x)} ]"))
 
     case FunctionalObjectProperty(_, p) =>
       val (x, y1, y2) = ("?x", "?y1", "?y2")
-      Set(Rule.parseRule(s"[$name: ${rel(x, p, y1)} ${rel(x, p, y2)} -> ($y1 owl:sameAs $y2) ]"))
+      Set(Rule.parseRule(s"[ ${rel(x, p, y1)} ${rel(x, p, y2)} -> ($y1 owl:sameAs $y2) ]"))
 
     case InverseFunctionalObjectProperty(_, p) =>
       val (x1, x2, y) = ("?x", "?x2", "?y")
-      Set(Rule.parseRule(s"[$name: ${rel(x1, p, y)} ${rel(x2, p, y)} -> ($x1 owl:sameAs $x2) ]"))
+      Set(Rule.parseRule(s"[ ${rel(x1, p, y)} ${rel(x2, p, y)} -> ($x1 owl:sameAs $x2) ]"))
 
     case IrreflexiveObjectProperty(_, p) =>
       val x = "?x"
-      Set(Rule.parseRule(s"[$name: ${rel(x, p, x)} -> ($x rdf:type owl:Nothing) ]"))
+      Set(Rule.parseRule(s"[ ${rel(x, p, x)} -> ($x rdf:type owl:Nothing) ]"))
 
     case SymmetricObjectProperty(_, p) =>
       val (x, y) = ("?x", "?y")
-      Set(Rule.parseRule(s"[$name: ${rel(x, p, y)} -> ${rel(y, p, x)} ]"))
+      Set(Rule.parseRule(s"[ ${rel(x, p, y)} -> ${rel(y, p, x)} ]"))
 
     case AsymmetricObjectProperty(_, p) =>
       val (x, y) = ("?x", "?y")
-      Set(Rule.parseRule(s"[$name: ${rel(x, p, y)} ${rel(y, p, x)} -> ($x rdf:type owl:Nothing) ($y rdf:type owl:Nothing) ]"))
+      Set(Rule.parseRule(s"[ ${rel(x, p, y)} ${rel(y, p, x)} -> ($x rdf:type owl:Nothing) ($y rdf:type owl:Nothing) ]"))
 
     case TransitiveObjectProperty(_, p) =>
       val (x, y, z) = ("?x", "?y", "?z")
-      Set(Rule.parseRule(s"[$name: ${rel(x, p, y)} ${rel(y, p, z)} -> ${rel(x, p, z)} ]"))
+      Set(Rule.parseRule(s"[ ${rel(x, p, y)} ${rel(y, p, z)} -> ${rel(x, p, z)} ]"))
 
     case SubObjectPropertyChainOf(_, subprops, prop) =>
       val start = makeSubject(0)
@@ -129,7 +145,7 @@ object OWLtoRules extends LazyLogging {
       val patterns = for {
         (subprop, index) <- subprops.zipWithIndex
       } yield rel(makeSubject(index), subprop, makeSubject(index + 1))
-      Set(Rule.parseRule(s"[$name: ${patterns.mkString(" ")} -> ${rel(start, prop, end)} ]"))
+      Set(Rule.parseRule(s"[ ${patterns.mkString(" ")} -> ${rel(start, prop, end)} ]"))
 
     //TODO data properties, abox axioms
 
@@ -140,8 +156,14 @@ object OWLtoRules extends LazyLogging {
 
   }
 
+  private def headOkay(superClass: OWLClassExpression): Boolean = superClass match {
+    case Class(_)                              => true
+    case ObjectHasValue(_, NamedIndividual(_)) => true
+    case _                                     => false
+  }
+
   private def makeRule(body: Intersection, head: String): Rule = {
-    Rule.parseRule(s"[$name: ${body.atoms.mkString(" ")} -> $head ]")
+    Rule.parseRule(s"[ ${body.atoms.mkString(" ")} -> $head ]")
   }
 
   private def rel(subj: String, prop: OWLObjectPropertyExpression, obj: String): String = prop match {
@@ -182,7 +204,5 @@ object OWLtoRules extends LazyLogging {
   }
 
   private def makeSubject(level: Int): String = if (level == 0) "?x" else s"?x$level"
-
-  private def name: String = UUID.randomUUID().toString
 
 }
