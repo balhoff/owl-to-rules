@@ -3,7 +3,7 @@ organization  := "org.geneontology"
 
 name          := "owl-to-rules"
 
-version       := "0.0.1"
+version       := "0.1-SNAPSHOT"
 
 publishMavenStyle := true
 
