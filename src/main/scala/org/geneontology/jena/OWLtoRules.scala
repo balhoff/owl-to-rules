@@ -23,16 +23,18 @@ import org.semanticweb.owlapi.model.parameters.Imports
 import com.typesafe.scalalogging.LazyLogging
 
 import SWRLUtil._
+import org.semanticweb.owlapi.model.AxiomType
 
 object OWLtoRules extends LazyLogging {
 
   val factory = OWLManager.getOWLDataFactory
 
-  def translate(ont: OWLOntology, includeImportsClosure: Imports, translateTbox: Boolean, translateRbox: Boolean, translateAbox: Boolean): Set[Rule] = {
+  def translate(ont: OWLOntology, includeImportsClosure: Imports, translateTbox: Boolean, translateRbox: Boolean, translateAbox: Boolean, translateRules: Boolean): Set[Rule] = {
     var axioms = ParSet.empty[OWLAxiom]
     if (translateTbox) axioms ++= ont.getTBoxAxioms(includeImportsClosure)
     if (translateRbox) axioms ++= ont.getRBoxAxioms(includeImportsClosure)
     if (translateAbox) axioms ++= ont.getABoxAxioms(includeImportsClosure)
+    if (translateRules) axioms ++= ont.getAxioms(AxiomType.SWRL_RULE).toSet[OWLAxiom]
     axioms.flatMap(translateAxiom).seq ++ builtInRules
   }
 
@@ -173,14 +175,14 @@ object OWLtoRules extends LazyLogging {
 
   private def translateSWRLRule(swrl: SWRLRule): Set[Rule] = {
     val incrementer = new AtomicInteger(0)
-    val variables = mapSWRLVariables(swrl, incrementer)
     for {
       simplified <- simplifySWRLHead(swrl)
+      variables = mapSWRLVariables(simplified, incrementer)
       ruleHead <- simplified.getHead
       jenaRule <- (translateBodyAtom(ruleHead, variables, incrementer) match {
         case Intersection(atoms) if atoms.size == 1 =>
           val jenaHead = atoms.head
-          swrl.getBody.map(translateBodyAtom(_, variables, incrementer)).fold(NoAtoms)(combine) match {
+          simplified.getBody.map(translateBodyAtom(_, variables, incrementer)).fold(NoAtoms)(combine) match {
             case Union(intersections)           => intersections.map(makeRule(_, jenaHead))
             case intersection @ Intersection(_) => Set(makeRule(intersection, jenaHead))
             case NoAtoms                        => Set(makeRule(Intersection(Set.empty), jenaHead))

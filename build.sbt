@@ -39,6 +39,7 @@ libraryDependencies ++= {
     "com.typesafe.scala-logging"  %% "scala-logging"          % "3.4.0",
     "ch.qos.logback"              %  "logback-classic"        % "1.1.7",
     "org.codehaus.groovy"         %  "groovy-all"             % "2.4.6",
+    "net.sourceforge.owlapi"      %  "org.semanticweb.hermit" % "1.3.8.413" % Test,
     "org.scalatest"               %% "scalatest"              % "3.0.1" % Test
   )
 }
