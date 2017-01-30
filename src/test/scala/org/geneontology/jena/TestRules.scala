@@ -14,6 +14,12 @@ import org.semanticweb.owlapi.util.InferredOntologyGenerator
 import org.semanticweb.owlapi.util.InferredPropertyAssertionGenerator
 
 import uk.ac.manchester.cs.factplusplus.owlapiv3.FaCTPlusPlusReasonerFactory
+import org.apache.jena.rdf.model.ResourceFactory
+import java.io.PrintWriter
+import org.apache.jena.reasoner.rulesys.RuleDerivation
+import org.semanticweb.owlapi.util.InferredIndividualAxiomGenerator
+import org.semanticweb.owlapi.reasoner.OWLReasonerFactory
+import org.semanticweb.HermiT.ReasonerFactory
 
 class TestRules extends UnitSpec {
 
@@ -21,32 +27,77 @@ class TestRules extends UnitSpec {
   private val RDFType = RDF.`type`.getURI
   private val OWLThing = OWL2.Thing.getURI
 
-  "Jena rules" should "infer the same triples as FaCT++" in {
-    compare("57c82fad00000639.ttl", "ro-merged.owl")
-    compare("test1.ttl", "test1.ttl")
+  "Explanations" should "be obtainable" in {
+    // This doesn't really test anything, it's just running the explanation function
+    val manager = OWLManager.createOWLOntologyManager()
+    val ontology = manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream("ro-merged.owl"))
+    val rules = OWLtoRules.translate(ontology, Imports.INCLUDED, true, true, true, true)
+    val reasoner = new GenericRuleReasoner(rules.toList)
+    reasoner.setMode(GenericRuleReasoner.FORWARD_RETE)
+    reasoner.setDerivationLogging(true)
+    val dataModel = ModelFactory.createDefaultModel()
+    dataModel.read(this.getClass.getResourceAsStream("57c82fad00000639.ttl"), "", "ttl")
+    val infModel = ModelFactory.createInfModel(reasoner, dataModel)
+    infModel.prepare()
+
+    Explanation.explain(ResourceFactory.createStatement(
+      ResourceFactory.createResource("http://model.geneontology.org/57c82fad00000639/57c82fad00000649"),
+      ResourceFactory.createProperty("http://purl.obolibrary.org/obo/BFO_0000051"),
+      ResourceFactory.createResource("http://model.geneontology.org/57c82fad00000639/57c82fad00000653")), infModel)
+      .foreach(e => println(e.toString))
+
+    Explanation.explain(ResourceFactory.createStatement(
+      ResourceFactory.createResource("http://model.geneontology.org/57c82fad00000639/57c82fad00000653"),
+      ResourceFactory.createProperty("http://purl.obolibrary.org/obo/RO_0002410"),
+      ResourceFactory.createResource("http://model.geneontology.org/57c82fad00000639/57c82fad00000656")), infModel)
+      .foreach(e => println(e.toString))
+
+    Explanation.explain(ResourceFactory.createStatement(
+      ResourceFactory.createResource("http://model.geneontology.org/57c82fad00000639/57c82fad00000653"),
+      ResourceFactory.createProperty("http://purl.obolibrary.org/obo/RO_0002608"),
+      ResourceFactory.createResource("http://model.geneontology.org/57c82fad00000639/57c82fad00000656")), infModel)
+      .foreach(e => println(e.toString))
+
+    Explanation.explain(ResourceFactory.createStatement(
+      ResourceFactory.createResource("http://model.geneontology.org/57c82fad00000639/57c82fad00000656"),
+      ResourceFactory.createProperty("http://purl.obolibrary.org/obo/RO_0002500"),
+      ResourceFactory.createResource("http://model.geneontology.org/57c82fad00000639/57c82fad00000653")), infModel)
+      .foreach(e => println(e.toString))
+
+    Explanation.explain(ResourceFactory.createStatement(
+      ResourceFactory.createResource("http://model.geneontology.org/57c82fad00000639/57c82fad00000655"),
+      ResourceFactory.createProperty("http://purl.obolibrary.org/obo/BFO_0000050"),
+      ResourceFactory.createResource("http://model.geneontology.org/57c82fad00000639/57c82fad00000653")), infModel)
+      .foreach(e => println(e.toString))
   }
 
-  def compare(dataFile: String, ontologyFile: String): Unit = {
+  "Jena rules" should "infer the same triples as an OWL API reasoner" in {
+    compare("57c82fad00000639.ttl", "ro-merged.owl", false)
+    compare("test1.ttl", "test1.ttl", true)
+  }
+
+  def compare(dataFile: String, ontologyFile: String, hermit: Boolean): Unit = {
     val asserted = {
       val model = ModelFactory.createDefaultModel()
       model.read(this.getClass.getResourceAsStream(dataFile), "", "ttl")
       filterStatements(model.listStatements().toSet.toSet)
     }
     val jena = runJenaRules(dataFile, ontologyFile)
-    val fact = runFactPlusPlus(dataFile, ontologyFile)
+    val owlResult = if (hermit) runHermiT(dataFile, ontologyFile) else runFactPlusPlus(dataFile, ontologyFile)
     jena.size should be > asserted.size
-    fact.size should be > asserted.size
+    owlResult.size should be > asserted.size
     println("Not in jena: ")
-    (fact -- jena).foreach(println)
+    (owlResult -- jena).foreach(println)
     println("Not in fact: ")
-    (jena -- fact).foreach(println)
-    jena shouldEqual fact
+    (jena -- owlResult).foreach(println)
+    jena shouldEqual owlResult
   }
 
   def runJenaRules(dataFile: String, ontologyFile: String): Set[Statement] = {
     val manager = OWLManager.createOWLOntologyManager()
     val ontology = manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream(ontologyFile))
-    val rules = OWLtoRules.translate(ontology, Imports.INCLUDED, true, true, true)
+    val rules = OWLtoRules.translate(ontology, Imports.INCLUDED, true, true, true, true)
+    rules.foreach(println)
     val reasoner = new GenericRuleReasoner(rules.toList)
     reasoner.setMode(GenericRuleReasoner.FORWARD_RETE)
     val dataModel = ModelFactory.createDefaultModel()
@@ -55,19 +106,29 @@ class TestRules extends UnitSpec {
     filterStatements(infModel.listStatements().toSet.toSet)
   }
 
-  def runFactPlusPlus(dataFile: String, ontologyFile: String): Set[Statement] = {
+  def runOWLReasoner(factory: OWLReasonerFactory, dataFile: String, ontologyFile: String): Set[Statement] = {
     val manager = OWLManager.createOWLOntologyManager()
     if (ontologyFile != dataFile) manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream(ontologyFile))
     val ontology = manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream(dataFile))
-    val reasoner = new FaCTPlusPlusReasonerFactory().createReasoner(ontology)
-    val generator = new InferredOntologyGenerator(reasoner, List(new InferredPropertyAssertionGenerator(), new InferredClassAssertionAxiomGenerator()))
+    val reasoner = factory.createReasoner(ontology)
+    val generator = new InferredOntologyGenerator(reasoner, List(
+      new InferredPropertyAssertionGenerator(),
+      new InferredClassAssertionAxiomGenerator()))
     generator.fillOntology(manager.getOWLDataFactory, ontology)
     reasoner.dispose()
     filterStatements(SesameJena.ontologyAsTriples(ontology))
   }
 
+  def runFactPlusPlus(dataFile: String, ontologyFile: String): Set[Statement] =
+    runOWLReasoner(new FaCTPlusPlusReasonerFactory(), dataFile, ontologyFile)
+
+  def runHermiT(dataFile: String, ontologyFile: String): Set[Statement] =
+    runOWLReasoner(new ReasonerFactory(), dataFile, ontologyFile)
+
   def filterStatements(statements: Set[Statement]): Set[Statement] =
     statements.filterNot(_.getPredicate.getURI == TopObjectProperty)
+      .filterNot(_.getPredicate.getURI == OWL2.sameAs.getURI)
+      .filterNot(_.getPredicate.getURI == OWL2.differentFrom.getURI)
       .filterNot(_.getSubject.isAnon)
       .filterNot(_.getObject.isAnon)
       .filterNot(s => (s.getPredicate.getURI == RDFType) && s.getObject.isURIResource && (s.getObject.asResource.getURI == OWLThing))
