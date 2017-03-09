@@ -73,7 +73,7 @@ object OWLtoRules extends LazyLogging {
     case ObjectPropertyRange(_, p, ce)  => translateAxiom(SubClassOf((p.getInverseProperty some OWLThing), ce))
 
     case SubObjectPropertyOf(_, p, q) =>
-      val (x, y) = ("?x", "?y")
+      val (x, y) = ("?x", "?x1")
       Set(Rule.parseRule(s"[ ${rel(x, p, y)} -> ${rel(x, q, y)} ]"))
 
     case EquivalentObjectProperties(_, operands) => for {
@@ -87,21 +87,21 @@ object OWLtoRules extends LazyLogging {
       p = pair(0)
       q = pair(1)
     } yield {
-      val (x, y) = ("?x", "?y")
+      val (x, y) = ("?x", "?x1")
       Rule.parseRule(s"[ ${rel(x, p, y)} ${rel(x, q, y)} -> ($x rdf:type owl:Nothing) ($y rdf:type owl:Nothing) ]")
     }).toSet
 
     case InverseObjectProperties(_, p, q) =>
-      val (x, y) = ("?x", "?y")
+      val (x, y) = ("?x", "?x1")
       Set(Rule.parseRule(s"[ ${rel(x, p, y)} -> ${rel(y, q, x)} ]"),
         Rule.parseRule(s"[ ${rel(x, q, y)} -> ${rel(y, p, x)} ]"))
 
     case FunctionalObjectProperty(_, p) =>
-      val (x, y1, y2) = ("?x", "?y1", "?y2")
+      val (x, y1, y2) = ("?x", "?x1", "?x2")
       Set(Rule.parseRule(s"[ ${rel(x, p, y1)} ${rel(x, p, y2)} -> ($y1 owl:sameAs $y2) ]"))
 
     case InverseFunctionalObjectProperty(_, p) =>
-      val (x1, x2, y) = ("?x", "?x2", "?y")
+      val (x1, x2, y) = ("?x", "?x2", "?x1")
       Set(Rule.parseRule(s"[ ${rel(x1, p, y)} ${rel(x2, p, y)} -> ($x1 owl:sameAs $x2) ]"))
 
     case IrreflexiveObjectProperty(_, p) =>
@@ -109,15 +109,15 @@ object OWLtoRules extends LazyLogging {
       Set(Rule.parseRule(s"[ ${rel(x, p, x)} -> ($x rdf:type owl:Nothing) ]"))
 
     case SymmetricObjectProperty(_, p) =>
-      val (x, y) = ("?x", "?y")
+      val (x, y) = ("?x", "?x1")
       Set(Rule.parseRule(s"[ ${rel(x, p, y)} -> ${rel(y, p, x)} ]"))
 
     case AsymmetricObjectProperty(_, p) =>
-      val (x, y) = ("?x", "?y")
+      val (x, y) = ("?x", "?x1")
       Set(Rule.parseRule(s"[ ${rel(x, p, y)} ${rel(y, p, x)} -> ($x rdf:type owl:Nothing) ($y rdf:type owl:Nothing) ]"))
 
     case TransitiveObjectProperty(_, p) =>
-      val (x, y, z) = ("?x", "?y", "?z")
+      val (x, y, z) = ("?x", "?x1", "?x2")
       Set(Rule.parseRule(s"[ ${rel(x, p, y)} ${rel(y, p, z)} -> ${rel(x, p, z)} ]"))
 
     case SubObjectPropertyChainOf(_, subprops, prop) =>
@@ -165,7 +165,8 @@ object OWLtoRules extends LazyLogging {
     .map(Rule.parseRule)
 
   private def makeRule(body: Intersection, head: String): Rule = {
-    Rule.parseRule(s"[ ${body.atoms.mkString(" ")} -> $head ]")
+    val sortedAtoms = body.atoms.toSeq.sortWith((a, b) => a.startsWith("(?x "))
+    Rule.parseRule(s"[ ${sortedAtoms.mkString(" ")} -> $head ]")
   }
 
   private def rel(subj: String, prop: OWLObjectPropertyExpression, obj: String): String = prop match {
@@ -321,5 +322,13 @@ object OWLtoRules extends LazyLogging {
     }).toMap
 
   private def freshSWRLVariable: SWRLVariable = factory.getSWRLVariable(IRI.create(s"urn:uuid:${UUID.randomUUID}"))
+
+  def indirectRules(ontology: OWLOntology) = for {
+    axiom <- ontology.getAxioms(AxiomType.SUBCLASS_OF, Imports.INCLUDED)
+    superclass = axiom.getSuperClass
+    subclass = axiom.getSubClass
+    if !subclass.isAnonymous
+    if !superclass.isAnonymous
+  } yield s"(?x rdf:type <${superclass.asOWLClass.getIRI}>) (?x rdf:type <${subclass.asOWLClass.getIRI}>) -> (?x <http://arachne.geneontology.org/indirect_type> <${superclass.asOWLClass.getIRI}>)"
 
 }
