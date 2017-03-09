@@ -323,12 +323,12 @@ object OWLtoRules extends LazyLogging {
 
   private def freshSWRLVariable: SWRLVariable = factory.getSWRLVariable(IRI.create(s"urn:uuid:${UUID.randomUUID}"))
 
-  def indirectRules(ontology: OWLOntology) = for {
+  def indirectRules(ontology: OWLOntology): Set[Rule] = (for {
     axiom <- ontology.getAxioms(AxiomType.SUBCLASS_OF, Imports.INCLUDED)
     superclass = axiom.getSuperClass
     subclass = axiom.getSubClass
     if !subclass.isAnonymous
     if !superclass.isAnonymous
-  } yield s"(?x rdf:type <${superclass.asOWLClass.getIRI}>) (?x rdf:type <${subclass.asOWLClass.getIRI}>) -> (?x <http://arachne.geneontology.org/indirect_type> <${superclass.asOWLClass.getIRI}>)"
+  } yield Rule.parseRule(s"[ (?x rdf:type <${superclass.asOWLClass.getIRI}>) (?x rdf:type <${subclass.asOWLClass.getIRI}>) -> (?x <http://arachne.geneontology.org/indirect_type> <${superclass.asOWLClass.getIRI}>) ]")).toSet
 
 }
