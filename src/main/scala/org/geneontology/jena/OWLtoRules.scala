@@ -73,8 +73,8 @@ object OWLtoRules extends LazyLogging {
     case ObjectPropertyRange(_, p, ce)  => translateAxiom(SubClassOf((p.getInverseProperty some OWLThing), ce))
 
     case SubObjectPropertyOf(_, p, q) =>
-      val (x, y) = ("?x", "?x1")
-      Set(Rule.parseRule(s"[ ${rel(x, p, y)} -> ${rel(x, q, y)} ]"))
+      val (x1, x2) = ("?x1", "?x2")
+      Set(Rule.parseRule(s"[ ${rel(x1, p, x2)} -> ${rel(x1, q, x2)} ]"))
 
     case EquivalentObjectProperties(_, operands) => for {
       superProp <- operands
@@ -87,37 +87,37 @@ object OWLtoRules extends LazyLogging {
       p = pair(0)
       q = pair(1)
     } yield {
-      val (x, y) = ("?x", "?x1")
-      Rule.parseRule(s"[ ${rel(x, p, y)} ${rel(x, q, y)} -> ($x rdf:type owl:Nothing) ($y rdf:type owl:Nothing) ]")
+      val (x1, x2) = ("?x1", "?x2")
+      Rule.parseRule(s"[ ${rel(x1, p, x2)} ${rel(x1, q, x2)} -> ($x1 rdf:type owl:Nothing) ($x2 rdf:type owl:Nothing) ]")
     }).toSet
 
     case InverseObjectProperties(_, p, q) =>
-      val (x, y) = ("?x", "?x1")
-      Set(Rule.parseRule(s"[ ${rel(x, p, y)} -> ${rel(y, q, x)} ]"),
-        Rule.parseRule(s"[ ${rel(x, q, y)} -> ${rel(y, p, x)} ]"))
+      val (x1, x2) = ("?x1", "?x2")
+      Set(Rule.parseRule(s"[ ${rel(x1, p, x2)} -> ${rel(x2, q, x1)} ]"),
+        Rule.parseRule(s"[ ${rel(x1, q, x2)} -> ${rel(x2, p, x1)} ]"))
 
     case FunctionalObjectProperty(_, p) =>
-      val (x, y1, y2) = ("?x", "?x1", "?x2")
-      Set(Rule.parseRule(s"[ ${rel(x, p, y1)} ${rel(x, p, y2)} -> ($y1 owl:sameAs $y2) ]"))
+      val (x1, x2, x3) = ("?x1", "?x2", "?x3")
+      Set(Rule.parseRule(s"[ ${rel(x1, p, x2)} ${rel(x1, p, x3)} -> ($x2 owl:sameAs $x3) ]"))
 
     case InverseFunctionalObjectProperty(_, p) =>
-      val (x1, x2, y) = ("?x", "?x2", "?x1")
-      Set(Rule.parseRule(s"[ ${rel(x1, p, y)} ${rel(x2, p, y)} -> ($x1 owl:sameAs $x2) ]"))
+      val (x1, x3, x2) = ("?x1", "?x3", "?x2")
+      Set(Rule.parseRule(s"[ ${rel(x1, p, x2)} ${rel(x3, p, x2)} -> ($x1 owl:sameAs $x3) ]"))
 
     case IrreflexiveObjectProperty(_, p) =>
       val x = "?x"
       Set(Rule.parseRule(s"[ ${rel(x, p, x)} -> ($x rdf:type owl:Nothing) ]"))
 
     case SymmetricObjectProperty(_, p) =>
-      val (x, y) = ("?x", "?x1")
+      val (x, y) = ("?x1", "?x2")
       Set(Rule.parseRule(s"[ ${rel(x, p, y)} -> ${rel(y, p, x)} ]"))
 
     case AsymmetricObjectProperty(_, p) =>
-      val (x, y) = ("?x", "?x1")
+      val (x, y) = ("?x1", "?x2")
       Set(Rule.parseRule(s"[ ${rel(x, p, y)} ${rel(y, p, x)} -> ($x rdf:type owl:Nothing) ($y rdf:type owl:Nothing) ]"))
 
     case TransitiveObjectProperty(_, p) =>
-      val (x, y, z) = ("?x", "?x1", "?x2")
+      val (x, y, z) = ("?x1", "?x2", "?x3")
       Set(Rule.parseRule(s"[ ${rel(x, p, y)} ${rel(y, p, z)} -> ${rel(x, p, z)} ]"))
 
     case SubObjectPropertyChainOf(_, subprops, prop) =>
@@ -186,7 +186,7 @@ object OWLtoRules extends LazyLogging {
           simplified.getBody.map(translateBodyAtom(_, variables, incrementer)).fold(NoAtoms)(combine) match {
             case Union(intersections)           => intersections.map(makeRule(_, jenaHead))
             case intersection @ Intersection(_) => Set(makeRule(intersection, jenaHead))
-            case NoAtoms                        => Set(makeRule(Intersection(Set.empty), jenaHead))
+            case NoAtoms                        => Set(makeRule(Intersection(Nil), jenaHead))
             case InvalidAtoms                   => Set.empty[Rule]
           }
         case _ => Set.empty[Rule]
@@ -248,47 +248,47 @@ object OWLtoRules extends LazyLogging {
     case ObjectPropertyAtom(pe, subj, obj) => (for {
       subjNode <- translateSWRLArgument(subj, variables)
       objNode <- translateSWRLArgument(obj, variables)
-    } yield Intersection(Set(rel(subjNode, pe, objNode)))).getOrElse(InvalidAtoms)
+    } yield Intersection(List(rel(subjNode, pe, objNode)))).getOrElse(InvalidAtoms)
     case SameIndividualAtom(arg1, arg2) => (for {
       subjNode <- translateSWRLArgument(arg1, variables)
       objNode <- translateSWRLArgument(arg2, variables)
-    } yield Intersection(Set(s"($subjNode owl:sameAs $objNode)"))).getOrElse(InvalidAtoms)
+    } yield Intersection(List(s"($subjNode owl:sameAs $objNode)"))).getOrElse(InvalidAtoms)
     case DifferentIndividualsAtom(arg1, arg2) => (for {
       subjNode <- translateSWRLArgument(arg1, variables)
       objNode <- translateSWRLArgument(arg2, variables)
-    } yield Intersection(Set(s"($subjNode owl:differentFrom $objNode)"))).getOrElse(InvalidAtoms)
+    } yield Intersection(List(s"($subjNode owl:differentFrom $objNode)"))).getOrElse(InvalidAtoms)
     case ClassAtom(ce, arg) => translateSWRLArgument(arg, variables).map(translateExpression(ce, _, incrementer))
       .getOrElse(InvalidAtoms)
   }
 
   private def translateExpression(ce: OWLClassExpression, subject: String, incrementer: AtomicInteger): Atoms = ce match {
     case OWLThing   => NoAtoms
-    case Class(iri) => Intersection(Set(s"($subject rdf:type <$iri>)"))
+    case Class(iri) => Intersection(List(s"($subject rdf:type <$iri>)"))
     case ObjectSomeValuesFrom(property, filler) =>
       val nextSubject = makeSubject(incrementer.incrementAndGet())
-      val triple = Intersection(Set(rel(subject, property, nextSubject)))
+      val triple = Intersection(List(rel(subject, property, nextSubject)))
       combine(triple, translateExpression(filler, nextSubject, incrementer))
     case ObjectIntersectionOf(operands) => operands.map(translateExpression(_, subject, incrementer))
       .fold(NoAtoms)(combine)
     case ObjectUnionOf(operands) => operands.map(translateExpression(_, subject, incrementer))
       .foldLeft(Union(Set.empty))(combineIntoUnion)
-    case ObjectHasValue(property, NamedIndividual(ind)) => Intersection(Set(rel(subject, property, s"<$ind>")))
+    case ObjectHasValue(property, NamedIndividual(ind)) => Intersection(List(rel(subject, property, s"<$ind>")))
     case ObjectOneOf(individuals) => Union(for {
       NamedIndividual(ind) <- individuals
     } //FIXME this probably wouldn't perform very well but if this is only atom rule won't match without triple pattern
-    yield Intersection(Set(s"($subject ?pred ?obj) equal($subject, <$ind>)")))
+    yield Intersection(List(s"($subject ?pred ?obj) equal($subject, <$ind>)")))
   }
 
   private sealed trait Atoms
-  private case class Intersection(atoms: Set[String]) extends Atoms
+  private case class Intersection(atoms: List[String]) extends Atoms
   private case class Union(intersections: Set[Intersection]) extends Atoms
   private case object NoAtoms extends Atoms
   private case object InvalidAtoms extends Atoms
 
   private def combine(a: Atoms, b: Atoms): Atoms = (a, b) match {
-    case (i @ Intersection(_), Union(us))   => Union(us.map(intersection => Intersection(i.atoms ++ intersection.atoms)))
-    case (Union(us), i @ Intersection(_))   => Union(us.map(intersection => Intersection(i.atoms ++ intersection.atoms)))
-    case (Intersection(a), Intersection(b)) => Intersection(a ++ b)
+    case (i @ Intersection(_), Union(us))   => Union(us.map(intersection => Intersection(i.atoms ::: intersection.atoms)))
+    case (Union(us), i @ Intersection(_))   => Union(us.map(intersection => Intersection(i.atoms ::: intersection.atoms)))
+    case (Intersection(a), Intersection(b)) => Intersection(a ::: b)
     case (Union(a), Union(b)) => Union(for {
       ai <- a
       bi <- b
@@ -302,7 +302,7 @@ object OWLtoRules extends LazyLogging {
   private def combineIntoUnion(union: Union, atoms: Atoms): Union = atoms match {
     case i @ Intersection(_) => Union(union.intersections + i)
     case Union(is)           => Union(union.intersections ++ is)
-    case NoAtoms             => Union(union.intersections + Intersection(Set.empty))
+    case NoAtoms             => Union(union.intersections + Intersection(Nil))
     case InvalidAtoms        => union
   }
 
