@@ -277,6 +277,7 @@ object OWLtoRules extends LazyLogging {
       NamedIndividual(ind) <- individuals
     } //FIXME this probably wouldn't perform very well but if this is only atom rule won't match without triple pattern
     yield Intersection(List(s"($subject ?pred ?obj) equal($subject, <$ind>)")))
+    case _ => InvalidAtoms // Invalid class expression used in body
   }
 
   private sealed trait Atoms
