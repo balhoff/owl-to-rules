@@ -36,7 +36,7 @@ object OWLtoRules extends LazyLogging {
     if (translateTbox) axioms ++= ont.getTBoxAxioms(includeImportsClosure)
     if (translateRbox) axioms ++= ont.getRBoxAxioms(includeImportsClosure)
     if (translateAbox) axioms ++= ont.getABoxAxioms(includeImportsClosure)
-    if (translateRules) axioms ++= ont.getAxioms(AxiomType.SWRL_RULE).toSet[OWLAxiom]
+    if (translateRules) axioms ++= ont.getAxioms(AxiomType.SWRL_RULE, includeImportsClosure).toSet[OWLAxiom]
     axioms.flatMap(translateAxiom).seq ++ builtInRules
   }
 
