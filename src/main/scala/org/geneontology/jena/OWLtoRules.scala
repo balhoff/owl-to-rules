@@ -27,7 +27,9 @@ import org.semanticweb.owlapi.model.AxiomType
 
 object OWLtoRules extends LazyLogging {
 
-  val factory = OWLManager.getOWLDataFactory
+  val IndirectType = "http://arachne.geneontology.org/indirect_type"
+
+  private val factory = OWLManager.getOWLDataFactory
 
   def translate(ont: OWLOntology, includeImportsClosure: Imports, translateTbox: Boolean, translateRbox: Boolean, translateAbox: Boolean, translateRules: Boolean): Set[Rule] = {
     var axioms = ParSet.empty[OWLAxiom]
@@ -330,6 +332,6 @@ object OWLtoRules extends LazyLogging {
     subclass = axiom.getSubClass
     if !subclass.isAnonymous
     if !superclass.isAnonymous
-  } yield Rule.parseRule(s"[ (?x rdf:type <${superclass.asOWLClass.getIRI}>) (?x rdf:type <${subclass.asOWLClass.getIRI}>) -> (?x <http://arachne.geneontology.org/indirect_type> <${superclass.asOWLClass.getIRI}>) ]")).toSet
+  } yield Rule.parseRule(s"[ (?x rdf:type <${superclass.asOWLClass.getIRI}>) (?x rdf:type <${subclass.asOWLClass.getIRI}>) -> (?x <$IndirectType> <${superclass.asOWLClass.getIRI}>) ]")).toSet
 
 }
