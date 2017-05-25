@@ -88,7 +88,7 @@ class TestRules extends UnitSpec {
     owlResult.size should be > asserted.size
     println("Not in jena: ")
     (owlResult -- jena).foreach(println)
-    println("Not in fact: ")
+    println("Not in OWL reasoner: ")
     (jena -- owlResult).foreach(println)
     jena shouldEqual owlResult
   }
