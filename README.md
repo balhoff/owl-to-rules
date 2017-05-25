@@ -1,5 +1,5 @@
 [![Build Status](https://travis-ci.org/balhoff/owl-to-rules.svg?branch=master)](https://travis-ci.org/balhoff/owl-to-rules)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.geneontology/owl-to-rules/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.geneontology/owl-to-rules)
+[![Maven Central](https://maven-badges.herokuapp.com/maven-central/org.geneontology/owl-to-rules_2.11/badge.svg)](https://maven-badges.herokuapp.com/maven-central/org.geneontology/owl-to-rules_2.11)
 
 # owl-to-rules
 
