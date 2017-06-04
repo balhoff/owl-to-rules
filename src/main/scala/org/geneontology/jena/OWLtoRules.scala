@@ -332,6 +332,6 @@ object OWLtoRules extends LazyLogging {
     subclass = axiom.getSubClass
     if !subclass.isAnonymous
     if !superclass.isAnonymous
-  } yield Rule.parseRule(s"[ (?x rdf:type <${superclass.asOWLClass.getIRI}>) (?x rdf:type <${subclass.asOWLClass.getIRI}>) -> (?x <$IndirectType> <${superclass.asOWLClass.getIRI}>) ]")).toSet
+  } yield Rule.parseRule(s"[ (?x rdf:type <${subclass.asOWLClass.getIRI}>) (?x rdf:type <${superclass.asOWLClass.getIRI}>) -> (?x <$IndirectType> <${superclass.asOWLClass.getIRI}>) ]")).toSet
 
 }
