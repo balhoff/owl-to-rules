@@ -3,7 +3,7 @@ organization  := "org.geneontology"
 
 name          := "owl-to-rules"
 
-version       := "0.3.4"
+version       := "0.3.5"
 
 publishMavenStyle := true
 
@@ -21,9 +21,9 @@ licenses := Seq("BSD-3-Clause" -> url("https://opensource.org/licenses/BSD-3-Cla
 
 homepage := Some(url("https://github.com/balhoff/owl-to-rules"))
 
-scalaVersion  := "2.12.2"
+scalaVersion  := "2.12.3"
 
-crossScalaVersions := Seq("2.11.8", "2.12.2")
+crossScalaVersions := Seq("2.11.8", "2.12.3")
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
