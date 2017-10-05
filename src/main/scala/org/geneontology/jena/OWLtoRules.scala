@@ -42,7 +42,7 @@ object OWLtoRules extends LazyLogging {
 
   def translateAxiom(axiom: OWLAxiom): Set[Rule] = axiom match {
 
-    case SubClassOf(_, subClass, superClass) =>
+    case SubClassOf(_, subClass, superClass) if (subClass != OWLNothing) =>
       translateAxiom(subClass('x) --> superClass('x))
 
     case EquivalentClasses(_, operands) => for {
