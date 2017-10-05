@@ -3,7 +3,7 @@ package org.geneontology.jena
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.collection.parallel.immutable.ParSet
 
 import org.apache.jena.reasoner.rulesys.Rule
@@ -33,10 +33,10 @@ object OWLtoRules extends LazyLogging {
 
   def translate(ont: OWLOntology, includeImportsClosure: Imports, translateTbox: Boolean, translateRbox: Boolean, translateAbox: Boolean, translateRules: Boolean): Set[Rule] = {
     var axioms = ParSet.empty[OWLAxiom]
-    if (translateTbox) axioms ++= ont.getTBoxAxioms(includeImportsClosure)
-    if (translateRbox) axioms ++= ont.getRBoxAxioms(includeImportsClosure)
-    if (translateAbox) axioms ++= ont.getABoxAxioms(includeImportsClosure)
-    if (translateRules) axioms ++= ont.getAxioms(AxiomType.SWRL_RULE, includeImportsClosure).toSet[OWLAxiom]
+    if (translateTbox) axioms ++= ont.getTBoxAxioms(includeImportsClosure).asScala
+    if (translateRbox) axioms ++= ont.getRBoxAxioms(includeImportsClosure).asScala
+    if (translateAbox) axioms ++= ont.getABoxAxioms(includeImportsClosure).asScala
+    if (translateRules) axioms ++= ont.getAxioms(AxiomType.SWRL_RULE, includeImportsClosure).asScala.toSet[OWLAxiom]
     axioms.flatMap(translateAxiom).seq ++ builtInRules
   }
 
@@ -181,11 +181,11 @@ object OWLtoRules extends LazyLogging {
     for {
       simplified <- simplifySWRLHead(swrl)
       variables = mapSWRLVariables(simplified, incrementer)
-      ruleHead <- simplified.getHead
+      ruleHead <- simplified.getHead.asScala
       jenaRule <- (translateBodyAtom(ruleHead, variables, incrementer) match {
         case Intersection(atoms) if atoms.size == 1 =>
           val jenaHead = atoms.head
-          simplified.getBody.map(translateBodyAtom(_, variables, incrementer)).fold(NoAtoms)(combine) match {
+          simplified.getBody.asScala.map(translateBodyAtom(_, variables, incrementer)).fold(NoAtoms)(combine) match {
             case Union(intersections)           => intersections.map(makeRule(_, jenaHead))
             case intersection @ Intersection(_) => Set(makeRule(intersection, jenaHead))
             case NoAtoms                        => Set(makeRule(Intersection(Nil), jenaHead))
@@ -197,10 +197,10 @@ object OWLtoRules extends LazyLogging {
   }
 
   private def simplifySWRLHead(swrl: SWRLRule): Set[SWRLRule] = {
-    val headAtoms = swrl.getHead
+    val headAtoms = swrl.getHead.asScala
     if (headAtoms.size > 1) (for {
       headAtom <- headAtoms
-      simplified <- simplifySWRLHead(factory.getSWRLRule(swrl.getBody, Set(headAtom)))
+      simplified <- simplifySWRLHead(factory.getSWRLRule(swrl.getBody, Set(headAtom).asJava))
     } yield simplified).toSet
     else if (headAtoms.size == 1)
       headAtoms.head match {
@@ -211,34 +211,34 @@ object OWLtoRules extends LazyLogging {
         case ClassAtom(ObjectIntersectionOf(operands), arg) => for {
           operand <- operands
           clsAtom <- Set(factory.getSWRLClassAtom(operand, arg))
-          newRule = factory.getSWRLRule(swrl.getBody, Set(clsAtom))
+          newRule = factory.getSWRLRule(swrl.getBody, Set(clsAtom).asJava)
           simplified <- simplifySWRLHead(newRule)
         } yield simplified
         case ClassAtom(ObjectAllValuesFrom(prop, filler), arg) =>
           val obj = freshSWRLVariable
           simplifySWRLHead(factory.getSWRLRule(
-            swrl.getBody + ObjectPropertyAtom(prop, arg, obj),
-            Set(ClassAtom(filler, obj))))
+            (swrl.getBody.asScala + ObjectPropertyAtom(prop, arg, obj)).asJava,
+            Set(ClassAtom(filler, obj)).asJava))
         case ClassAtom(ObjectComplementOf(ce), arg) => simplifySWRLHead(factory.getSWRLRule(
-          swrl.getBody + ClassAtom(ce, arg),
-          Set(ClassAtom(OWLNothing, arg))))
+          (swrl.getBody.asScala + ClassAtom(ce, arg)).asJava,
+          Set(ClassAtom(OWLNothing, arg)).asJava))
         case ClassAtom(ObjectHasValue(pe, ind), arg) => simplifySWRLHead(factory.getSWRLRule(
           swrl.getBody,
-          Set(ObjectPropertyAtom(pe, arg, IndividualArg(ind)))))
+          Set(ObjectPropertyAtom(pe, arg, IndividualArg(ind))).asJava))
         case ClassAtom(ObjectMaxCardinality(max, pe, ce), arg) => max match {
           case 0 =>
             val obj = freshSWRLVariable
             val fillerAtom = if (ce != OWLThing) Set(ce(obj)) else Set.empty
             simplifySWRLHead(factory.getSWRLRule(
-              swrl.getBody ++ fillerAtom + ObjectPropertyAtom(pe, arg, obj),
-              Set(ClassAtom(OWLNothing, arg))))
+              (swrl.getBody.asScala ++ fillerAtom + ObjectPropertyAtom(pe, arg, obj)).asJava,
+              Set(ClassAtom(OWLNothing, arg)).asJava))
           case 1 =>
             val obj1 = freshSWRLVariable
             val obj2 = freshSWRLVariable
             val fillerAtoms = if (ce != OWLThing) Set(ce(obj1), ce(obj2)) else Set.empty
             simplifySWRLHead(factory.getSWRLRule(
-              swrl.getBody ++ fillerAtoms + ObjectPropertyAtom(pe, arg, obj1) + ObjectPropertyAtom(pe, arg, obj2),
-              Set(SameIndividualAtom(obj1, obj2))))
+              (swrl.getBody.asScala ++ fillerAtoms + ObjectPropertyAtom(pe, arg, obj1) + ObjectPropertyAtom(pe, arg, obj2)).asJava,
+              Set(SameIndividualAtom(obj1, obj2)).asJava))
           case _ => Set.empty // unsupported cardinality
         }
         case _ => Set.empty // unsupported head
@@ -319,7 +319,7 @@ object OWLtoRules extends LazyLogging {
 
   private def mapSWRLVariables(rule: SWRLRule, incrementer: AtomicInteger): Map[IRI, String] =
     (for {
-      variable <- rule.getVariables
+      variable <- rule.getVariables.asScala
     } yield {
       variable.getIRI -> makeSubject(incrementer.incrementAndGet())
     }).toMap
@@ -327,7 +327,7 @@ object OWLtoRules extends LazyLogging {
   private def freshSWRLVariable: SWRLVariable = factory.getSWRLVariable(IRI.create(s"urn:uuid:${UUID.randomUUID}"))
 
   def indirectRules(ontology: OWLOntology): Set[Rule] = (for {
-    axiom <- ontology.getAxioms(AxiomType.SUBCLASS_OF, Imports.INCLUDED)
+    axiom <- ontology.getAxioms(AxiomType.SUBCLASS_OF, Imports.INCLUDED).asScala
     superclass = axiom.getSuperClass
     subclass = axiom.getSubClass
     if !subclass.isAnonymous
