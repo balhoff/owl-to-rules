@@ -23,7 +23,7 @@ homepage := Some(url("https://github.com/balhoff/owl-to-rules"))
 
 scalaVersion  := "2.12.3"
 
-crossScalaVersions := Seq("2.11.8", "2.12.3")
+crossScalaVersions := Seq("2.11.11", "2.12.3")
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
