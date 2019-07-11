@@ -1,7 +1,6 @@
 package org.geneontology.jena
 
-import scala.collection.JavaConversions._
-
+import scala.collection.JavaConverters._
 import org.apache.jena.rdf.model.ModelFactory
 import org.apache.jena.rdf.model.Statement
 import org.apache.jena.reasoner.rulesys.GenericRuleReasoner
@@ -9,17 +8,18 @@ import org.apache.jena.vocabulary.OWL2
 import org.apache.jena.vocabulary.RDF
 import org.semanticweb.owlapi.apibinding.OWLManager
 import org.semanticweb.owlapi.model.parameters.Imports
-import org.semanticweb.owlapi.util.InferredClassAssertionAxiomGenerator
-import org.semanticweb.owlapi.util.InferredOntologyGenerator
-import org.semanticweb.owlapi.util.InferredPropertyAssertionGenerator
-
+import org.semanticweb.owlapi.util.{InferredAxiomGenerator, InferredClassAssertionAxiomGenerator, InferredIndividualAxiomGenerator, InferredOntologyGenerator, InferredPropertyAssertionGenerator}
 import uk.ac.manchester.cs.factplusplus.owlapiv3.FaCTPlusPlusReasonerFactory
 import org.apache.jena.rdf.model.ResourceFactory
 import java.io.PrintWriter
+import java.util.Collections
+
 import org.apache.jena.reasoner.rulesys.RuleDerivation
-import org.semanticweb.owlapi.util.InferredIndividualAxiomGenerator
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory
 import org.semanticweb.HermiT.ReasonerFactory
+import org.semanticweb.owlapi.model.OWLAxiom
+
+import scala.collection.mutable.ListBuffer
 
 class TestRules extends UnitSpec {
 
@@ -32,7 +32,7 @@ class TestRules extends UnitSpec {
     val manager = OWLManager.createOWLOntologyManager()
     val ontology = manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream("ro-merged.owl"))
     val rules = OWLtoRules.translate(ontology, Imports.INCLUDED, true, true, true, true)
-    val reasoner = new GenericRuleReasoner(rules.toList)
+    val reasoner = new GenericRuleReasoner(rules.toList.asJava)
     reasoner.setMode(GenericRuleReasoner.FORWARD_RETE)
     reasoner.setDerivationLogging(true)
     val dataModel = ModelFactory.createDefaultModel()
@@ -80,7 +80,7 @@ class TestRules extends UnitSpec {
     val asserted = {
       val model = ModelFactory.createDefaultModel()
       model.read(this.getClass.getResourceAsStream(dataFile), "", "ttl")
-      filterStatements(model.listStatements().toSet.toSet)
+      filterStatements(model.listStatements().asScala.toSet)
     }
     val jena = runJenaRules(dataFile, ontologyFile)
     val owlResult = if (hermit) runHermiT(dataFile, ontologyFile) else runFactPlusPlus(dataFile, ontologyFile)
@@ -98,12 +98,12 @@ class TestRules extends UnitSpec {
     val ontology = manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream(ontologyFile))
     val rules = OWLtoRules.translate(ontology, Imports.INCLUDED, true, true, true, true)
     rules.foreach(println)
-    val reasoner = new GenericRuleReasoner(rules.toList)
+    val reasoner = new GenericRuleReasoner(rules.toList.asJava)
     reasoner.setMode(GenericRuleReasoner.FORWARD_RETE)
     val dataModel = ModelFactory.createDefaultModel()
     dataModel.read(this.getClass.getResourceAsStream(dataFile), "", "ttl")
     val infModel = ModelFactory.createInfModel(reasoner, dataModel)
-    filterStatements(infModel.listStatements().toSet.toSet)
+    filterStatements(infModel.listStatements().asScala.toSet)
   }
 
   def runOWLReasoner(factory: OWLReasonerFactory, dataFile: String, ontologyFile: String): Set[Statement] = {
@@ -111,9 +111,9 @@ class TestRules extends UnitSpec {
     if (ontologyFile != dataFile) manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream(ontologyFile))
     val ontology = manager.loadOntologyFromOntologyDocument(this.getClass.getResourceAsStream(dataFile))
     val reasoner = factory.createReasoner(ontology)
-    val generator = new InferredOntologyGenerator(reasoner, List(
+    val generator = new InferredOntologyGenerator(reasoner, List[InferredAxiomGenerator[_ <: OWLAxiom]](
       new InferredPropertyAssertionGenerator(),
-      new InferredClassAssertionAxiomGenerator()))
+      new InferredClassAssertionAxiomGenerator()).asJava)
     generator.fillOntology(manager.getOWLDataFactory, ontology)
     reasoner.dispose()
     filterStatements(SesameJena.ontologyAsTriples(ontology))
