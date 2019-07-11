@@ -330,6 +330,7 @@ object OWLtoRules extends LazyLogging {
     axiom <- ontology.getAxioms(AxiomType.SUBCLASS_OF, Imports.INCLUDED).asScala
     superclass = axiom.getSuperClass
     subclass = axiom.getSubClass
+    if subclass != superclass
     if !subclass.isAnonymous
     if !superclass.isAnonymous
   } yield Rule.parseRule(s"[ (?x rdf:type <${subclass.asOWLClass.getIRI}>) (?x rdf:type <${superclass.asOWLClass.getIRI}>) -> (?x <$IndirectType> <${superclass.asOWLClass.getIRI}>) ]")).toSet
