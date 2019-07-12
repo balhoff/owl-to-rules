@@ -33,12 +33,17 @@ javaOptions in Test += s"""-Djava.library.path=${baseDirectory.value / "native"}
 
 fork in Test := true
 
+// parallel collections are split into a separate package only in 2.13
+def parDependency(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
+  case Some((2, 13)) => Seq("org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0")
+  case _             => Seq.empty
+}
+
 libraryDependencies ++= {
   Seq(
     "net.sourceforge.owlapi"      %  "owlapi-distribution"        % "4.2.7",
     "org.apache.jena"             %  "apache-jena-libs"           % "3.1.1" pomOnly(),
     "org.phenoscape"              %% "scowl"                      % "1.3.4",
-    "org.scala-lang.modules"      %% "scala-parallel-collections" % "0.2.0",
     "com.typesafe.scala-logging"  %% "scala-logging"              % "3.9.2",
     "ch.qos.logback"              %  "logback-classic"            % "1.2.3",
     "org.codehaus.groovy"         %  "groovy-all"                 % "2.4.6",
@@ -46,6 +51,8 @@ libraryDependencies ++= {
     "org.scalatest"               %% "scalatest"                  % "3.0.8" % Test
   )
 }
+
+libraryDependencies ++= parDependency(scalaVersion.value)
 
 pomExtra := (
     <scm>
