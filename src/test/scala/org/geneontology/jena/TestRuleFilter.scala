@@ -6,7 +6,6 @@ import org.phenoscape.scowl._
 class TestRuleFilter extends UnitSpec {
 
   "owl:Nothing" should "not generate rules as a subclass" in {
-
     val PartOf = ObjectProperty("http://purl.obolibrary.org/obo/BFO_0000050")
     val NucleusOfBrain = Class("http://purl.obolibrary.org/obo/UBERON_0002308")
     val Midbrain = Class("http://purl.obolibrary.org/obo/UBERON_0001891")

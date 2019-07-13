@@ -3,27 +3,16 @@ package org.geneontology.jena
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection.JavaConverters._
-import scala.collection.parallel.immutable.ParSet
-
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.jena.reasoner.rulesys.Rule
+import org.geneontology.jena.SWRLUtil._
 import org.phenoscape.scowl._
 import org.semanticweb.owlapi.apibinding.OWLManager
-import org.semanticweb.owlapi.model.IRI
-import org.semanticweb.owlapi.model.OWLAxiom
-import org.semanticweb.owlapi.model.OWLClassExpression
-import org.semanticweb.owlapi.model.OWLObjectPropertyExpression
-import org.semanticweb.owlapi.model.OWLOntology
-import org.semanticweb.owlapi.model.SWRLAtom
-import org.semanticweb.owlapi.model.SWRLIArgument
-import org.semanticweb.owlapi.model.SWRLRule
-import org.semanticweb.owlapi.model.SWRLVariable
 import org.semanticweb.owlapi.model.parameters.Imports
+import org.semanticweb.owlapi.model._
 
-import com.typesafe.scalalogging.LazyLogging
-
-import SWRLUtil._
-import org.semanticweb.owlapi.model.AxiomType
+import scala.collection.JavaConverters._
+import scala.collection.parallel.immutable.ParSet
 
 object OWLtoRules extends LazyLogging {
 
@@ -42,12 +31,12 @@ object OWLtoRules extends LazyLogging {
 
   def translateAxiom(axiom: OWLAxiom): Set[Rule] = axiom match {
 
-    case SubClassOf(_, subClass, superClass) if (subClass != OWLNothing) =>
+    case SubClassOf(_, subClass, superClass) if subClass != OWLNothing =>
       translateAxiom(subClass('x) --> superClass('x))
 
     case EquivalentClasses(_, operands) => for {
       superClass <- operands
-      subClass <- (operands.filterNot(_ == superClass)) //FIXME scowl types ought to allow minus
+      subClass <- operands.filterNot(_ == superClass) //FIXME scowl types ought to allow minus
       rule <- translateAxiom(SubClassOf(subClass, superClass))
     } yield rule
 
@@ -72,7 +61,7 @@ object OWLtoRules extends LazyLogging {
 
     case ObjectPropertyDomain(_, p, ce) => translateAxiom(SubClassOf((p some OWLThing), ce))
 
-    case ObjectPropertyRange(_, p, ce)  => translateAxiom(SubClassOf((p.getInverseProperty some OWLThing), ce))
+    case ObjectPropertyRange(_, p, ce) => translateAxiom(SubClassOf((p.getInverseProperty some OWLThing), ce))
 
     case SubObjectPropertyOf(_, p, q) =>
       val (x1, x2) = ("?x1", "?x2")
@@ -80,7 +69,7 @@ object OWLtoRules extends LazyLogging {
 
     case EquivalentObjectProperties(_, operands) => for {
       superProp <- operands
-      subProp <- (operands - superProp)
+      subProp <- operands - superProp
       rule <- translateAxiom(SubObjectPropertyOf(subProp, superProp))
     } yield rule
 
@@ -171,7 +160,7 @@ object OWLtoRules extends LazyLogging {
     Rule.parseRule(s"[ ${sortedAtoms.mkString(" ")} -> $head ]")
   }
 
-  private def rel(subj: String, prop: OWLObjectPropertyExpression, obj: String): String = prop match {
+  private def rel(subj: String, ope: OWLObjectPropertyExpression, obj: String): String = ope match {
     case ObjectProperty(prop)                  => s"($subj <$prop> $obj)"
     case ObjectInverseOf(ObjectProperty(prop)) => s"($obj <$prop> $subj)"
   }
@@ -181,34 +170,34 @@ object OWLtoRules extends LazyLogging {
     for {
       simplified <- simplifySWRLHead(swrl)
       variables = mapSWRLVariables(simplified, incrementer)
-      ruleHead <- simplified.getHead.asScala
-      jenaRule <- (translateBodyAtom(ruleHead, variables, incrementer) match {
+      ruleHead <- simplified.getHead.asScala.toSet[SWRLAtom]
+      jenaRule <- translateBodyAtom(ruleHead, variables, incrementer) match {
         case Intersection(atoms) if atoms.size == 1 =>
           val jenaHead = atoms.head
-          simplified.getBody.asScala.map(translateBodyAtom(_, variables, incrementer)).fold(NoAtoms)(combine) match {
+          simplified.getBody.asScala.toSet[SWRLAtom].map(translateBodyAtom(_, variables, incrementer)).fold(NoAtoms)(combine) match {
             case Union(intersections)           => intersections.map(makeRule(_, jenaHead))
             case intersection @ Intersection(_) => Set(makeRule(intersection, jenaHead))
             case NoAtoms                        => Set(makeRule(Intersection(Nil), jenaHead))
             case InvalidAtoms                   => Set.empty[Rule]
           }
-        case _ => Set.empty[Rule]
-      })
+        case _                                      => Set.empty[Rule]
+      }
     } yield jenaRule
   }
 
   private def simplifySWRLHead(swrl: SWRLRule): Set[SWRLRule] = {
-    val headAtoms = swrl.getHead.asScala
+    val headAtoms = swrl.getHead.asScala.toSet[SWRLAtom]
     if (headAtoms.size > 1) (for {
       headAtom <- headAtoms
       simplified <- simplifySWRLHead(factory.getSWRLRule(swrl.getBody, Set(headAtom).asJava))
     } yield simplified).toSet
     else if (headAtoms.size == 1)
       headAtoms.head match {
-        case ObjectPropertyAtom(_, _, _)    => Set(swrl)
-        case SameIndividualAtom(_, _)       => Set(swrl)
-        case DifferentIndividualsAtom(_, _) => Set(swrl)
-        case ClassAtom(Class(_), _)         => Set(swrl)
-        case ClassAtom(ObjectIntersectionOf(operands), arg) => for {
+        case ObjectPropertyAtom(_, _, _)                       => Set(swrl)
+        case SameIndividualAtom(_, _)                          => Set(swrl)
+        case DifferentIndividualsAtom(_, _)                    => Set(swrl)
+        case ClassAtom(Class(_), _)                            => Set(swrl)
+        case ClassAtom(ObjectIntersectionOf(operands), arg)    => for {
           operand <- operands
           clsAtom <- Set(factory.getSWRLClassAtom(operand, arg))
           newRule = factory.getSWRLRule(swrl.getBody, Set(clsAtom).asJava)
@@ -217,12 +206,12 @@ object OWLtoRules extends LazyLogging {
         case ClassAtom(ObjectAllValuesFrom(prop, filler), arg) =>
           val obj = freshSWRLVariable
           simplifySWRLHead(factory.getSWRLRule(
-            (swrl.getBody.asScala + ObjectPropertyAtom(prop, arg, obj)).asJava,
+            (swrl.getBody.asScala.toSet[SWRLAtom] + ObjectPropertyAtom(prop, arg, obj)).asJava,
             Set(ClassAtom(filler, obj)).asJava))
-        case ClassAtom(ObjectComplementOf(ce), arg) => simplifySWRLHead(factory.getSWRLRule(
-          (swrl.getBody.asScala + ClassAtom(ce, arg)).asJava,
+        case ClassAtom(ObjectComplementOf(ce), arg)            => simplifySWRLHead(factory.getSWRLRule(
+          (swrl.getBody.asScala.toSet[SWRLAtom] + ClassAtom(ce, arg)).asJava,
           Set(ClassAtom(OWLNothing, arg)).asJava))
-        case ClassAtom(ObjectHasValue(pe, ind), arg) => simplifySWRLHead(factory.getSWRLRule(
+        case ClassAtom(ObjectHasValue(pe, ind), arg)           => simplifySWRLHead(factory.getSWRLRule(
           swrl.getBody,
           Set(ObjectPropertyAtom(pe, arg, IndividualArg(ind))).asJava))
         case ClassAtom(ObjectMaxCardinality(max, pe, ce), arg) => max match {
@@ -230,28 +219,28 @@ object OWLtoRules extends LazyLogging {
             val obj = freshSWRLVariable
             val fillerAtom = if (ce != OWLThing) Set(ce(obj)) else Set.empty
             simplifySWRLHead(factory.getSWRLRule(
-              (swrl.getBody.asScala ++ fillerAtom + ObjectPropertyAtom(pe, arg, obj)).asJava,
+              (swrl.getBody.asScala.toSet[SWRLAtom] ++ fillerAtom + ObjectPropertyAtom(pe, arg, obj)).asJava,
               Set(ClassAtom(OWLNothing, arg)).asJava))
           case 1 =>
             val obj1 = freshSWRLVariable
             val obj2 = freshSWRLVariable
             val fillerAtoms = if (ce != OWLThing) Set(ce(obj1), ce(obj2)) else Set.empty
             simplifySWRLHead(factory.getSWRLRule(
-              (swrl.getBody.asScala ++ fillerAtoms + ObjectPropertyAtom(pe, arg, obj1) + ObjectPropertyAtom(pe, arg, obj2)).asJava,
+              (swrl.getBody.asScala.toSet[SWRLAtom] ++ fillerAtoms + ObjectPropertyAtom(pe, arg, obj1) + ObjectPropertyAtom(pe, arg, obj2)).asJava,
               Set(SameIndividualAtom(obj1, obj2)).asJava))
           case _ => Set.empty // unsupported cardinality
         }
-        case _ => Set.empty // unsupported head
+        case _                                                 => Set.empty // unsupported head
       }
     else Set.empty // no head //FIXME log
   }
 
   private def translateBodyAtom(atom: SWRLAtom, variables: Map[IRI, String], incrementer: AtomicInteger): Atoms = atom match {
-    case ObjectPropertyAtom(pe, subj, obj) => (for {
+    case ObjectPropertyAtom(pe, subj, obj)    => (for {
       subjNode <- translateSWRLArgument(subj, variables)
       objNode <- translateSWRLArgument(obj, variables)
     } yield Intersection(List(rel(subjNode, pe, objNode)))).getOrElse(InvalidAtoms)
-    case SameIndividualAtom(arg1, arg2) => (for {
+    case SameIndividualAtom(arg1, arg2)       => (for {
       subjNode <- translateSWRLArgument(arg1, variables)
       objNode <- translateSWRLArgument(arg2, variables)
     } yield Intersection(List(s"($subjNode owl:sameAs $objNode)"))).getOrElse(InvalidAtoms)
@@ -259,47 +248,51 @@ object OWLtoRules extends LazyLogging {
       subjNode <- translateSWRLArgument(arg1, variables)
       objNode <- translateSWRLArgument(arg2, variables)
     } yield Intersection(List(s"($subjNode owl:differentFrom $objNode)"))).getOrElse(InvalidAtoms)
-    case ClassAtom(ce, arg) => translateSWRLArgument(arg, variables).map(translateExpression(ce, _, incrementer))
+    case ClassAtom(ce, arg)                   => translateSWRLArgument(arg, variables).map(translateExpression(ce, _, incrementer))
       .getOrElse(InvalidAtoms)
   }
 
   private def translateExpression(ce: OWLClassExpression, subject: String, incrementer: AtomicInteger): Atoms = ce match {
-    case OWLThing   => NoAtoms
-    case Class(iri) => Intersection(List(s"($subject rdf:type <$iri>)"))
-    case ObjectSomeValuesFrom(property, filler) =>
+    case OWLThing                                       => NoAtoms
+    case Class(iri)                                     => Intersection(List(s"($subject rdf:type <$iri>)"))
+    case ObjectSomeValuesFrom(property, filler)         =>
       val nextSubject = makeSubject(incrementer.incrementAndGet())
       val triple = Intersection(List(rel(subject, property, nextSubject)))
       combine(triple, translateExpression(filler, nextSubject, incrementer))
-    case ObjectIntersectionOf(operands) => operands.map(translateExpression(_, subject, incrementer))
+    case ObjectIntersectionOf(operands)                 => operands.map(translateExpression(_, subject, incrementer))
       .fold(NoAtoms)(combine)
-    case ObjectUnionOf(operands) => operands.map(translateExpression(_, subject, incrementer))
+    case ObjectUnionOf(operands)                        => operands.map(translateExpression(_, subject, incrementer))
       .foldLeft(Union(Set.empty))(combineIntoUnion)
     case ObjectHasValue(property, NamedIndividual(ind)) => Intersection(List(rel(subject, property, s"<$ind>")))
-    case ObjectOneOf(individuals) => Union(for {
+    case ObjectOneOf(individuals)                       => Union(for {
       NamedIndividual(ind) <- individuals
     } //FIXME this probably wouldn't perform very well but if this is only atom rule won't match without triple pattern
-    yield Intersection(List(s"($subject ?pred ?obj) equal($subject, <$ind>)")))
-    case _ => InvalidAtoms // Invalid class expression used in body
+      yield Intersection(List(s"($subject ?pred ?obj) equal($subject, <$ind>)")))
+    case _                                              => InvalidAtoms // Invalid class expression used in body
   }
 
   private sealed trait Atoms
+
   private case class Intersection(atoms: List[String]) extends Atoms
+
   private case class Union(intersections: Set[Intersection]) extends Atoms
+
   private case object NoAtoms extends Atoms
+
   private case object InvalidAtoms extends Atoms
 
   private def combine(a: Atoms, b: Atoms): Atoms = (a, b) match {
     case (i @ Intersection(_), Union(us))   => Union(us.map(intersection => Intersection(i.atoms ::: intersection.atoms)))
     case (Union(us), i @ Intersection(_))   => Union(us.map(intersection => Intersection(i.atoms ::: intersection.atoms)))
     case (Intersection(a), Intersection(b)) => Intersection(a ::: b)
-    case (Union(a), Union(b)) => Union(for {
+    case (Union(a), Union(b))               => Union(for {
       ai <- a
       bi <- b
     } yield Intersection(ai.atoms ++ bi.atoms))
-    case (other, NoAtoms)      => other
-    case (NoAtoms, other)      => other
-    case (other, InvalidAtoms) => InvalidAtoms
-    case (InvalidAtoms, other) => InvalidAtoms
+    case (other, NoAtoms)                   => other
+    case (NoAtoms, other)                   => other
+    case (_, InvalidAtoms)                  => InvalidAtoms
+    case (InvalidAtoms, _)                  => InvalidAtoms
   }
 
   private def combineIntoUnion(union: Union, atoms: Atoms): Union = atoms match {
@@ -319,7 +312,7 @@ object OWLtoRules extends LazyLogging {
 
   private def mapSWRLVariables(rule: SWRLRule, incrementer: AtomicInteger): Map[IRI, String] =
     (for {
-      variable <- rule.getVariables.asScala
+      variable <- rule.getVariables.asScala.toSet[SWRLVariable]
     } yield {
       variable.getIRI -> makeSubject(incrementer.incrementAndGet())
     }).toMap
@@ -327,7 +320,7 @@ object OWLtoRules extends LazyLogging {
   private def freshSWRLVariable: SWRLVariable = factory.getSWRLVariable(IRI.create(s"urn:uuid:${UUID.randomUUID}"))
 
   def indirectRules(ontology: OWLOntology): Set[Rule] = (for {
-    axiom <- ontology.getAxioms(AxiomType.SUBCLASS_OF, Imports.INCLUDED).asScala
+    axiom <- ontology.getAxioms(AxiomType.SUBCLASS_OF, Imports.INCLUDED).asScala.toSet[OWLSubClassOfAxiom]
     superclass = axiom.getSuperClass
     subclass = axiom.getSubClass
     if subclass != superclass

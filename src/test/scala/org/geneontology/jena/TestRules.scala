@@ -1,25 +1,17 @@
 package org.geneontology.jena
 
-import scala.collection.JavaConverters._
-import org.apache.jena.rdf.model.ModelFactory
-import org.apache.jena.rdf.model.Statement
+import org.apache.jena.rdf.model.{ModelFactory, ResourceFactory, Statement}
 import org.apache.jena.reasoner.rulesys.GenericRuleReasoner
-import org.apache.jena.vocabulary.OWL2
-import org.apache.jena.vocabulary.RDF
-import org.semanticweb.owlapi.apibinding.OWLManager
-import org.semanticweb.owlapi.model.parameters.Imports
-import org.semanticweb.owlapi.util.{InferredAxiomGenerator, InferredClassAssertionAxiomGenerator, InferredIndividualAxiomGenerator, InferredOntologyGenerator, InferredPropertyAssertionGenerator}
-import uk.ac.manchester.cs.factplusplus.owlapiv3.FaCTPlusPlusReasonerFactory
-import org.apache.jena.rdf.model.ResourceFactory
-import java.io.PrintWriter
-import java.util.Collections
-
-import org.apache.jena.reasoner.rulesys.RuleDerivation
-import org.semanticweb.owlapi.reasoner.OWLReasonerFactory
+import org.apache.jena.vocabulary.{OWL2, RDF}
 import org.semanticweb.HermiT.ReasonerFactory
+import org.semanticweb.owlapi.apibinding.OWLManager
 import org.semanticweb.owlapi.model.OWLAxiom
+import org.semanticweb.owlapi.model.parameters.Imports
+import org.semanticweb.owlapi.reasoner.OWLReasonerFactory
+import org.semanticweb.owlapi.util.{InferredAxiomGenerator, InferredClassAssertionAxiomGenerator, InferredOntologyGenerator, InferredPropertyAssertionGenerator}
+import uk.ac.manchester.cs.factplusplus.owlapiv3.FaCTPlusPlusReasonerFactory
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.JavaConverters._
 
 class TestRules extends UnitSpec {
 
