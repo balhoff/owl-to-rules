@@ -3,7 +3,6 @@ package org.geneontology.jena
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-import com.typesafe.scalalogging.LazyLogging
 import org.apache.jena.reasoner.rulesys.Rule
 import org.geneontology.jena.SWRLUtil._
 import org.phenoscape.scowl._
@@ -14,7 +13,7 @@ import org.semanticweb.owlapi.model._
 import scala.collection.JavaConverters._
 import scala.collection.parallel.immutable.ParSet
 
-object OWLtoRules extends LazyLogging {
+object OWLtoRules {
 
   val IndirectType = "http://arachne.geneontology.org/indirect_type"
 
@@ -140,7 +139,7 @@ object OWLtoRules extends LazyLogging {
     case rule: SWRLRule => translateSWRLRule(rule)
 
     case _ => {
-      logger.debug("Skipping: " + axiom)
+      scribe.debug("Skipping: " + axiom)
       Set.empty
     }
 

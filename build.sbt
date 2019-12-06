@@ -23,7 +23,7 @@ homepage := Some(url("https://github.com/balhoff/owl-to-rules"))
 
 scalaVersion  := "2.13.0"
 
-crossScalaVersions := Seq("2.11.12", "2.12.8", "2.13.0")
+crossScalaVersions := Seq("2.12.10", "2.13.1")
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
@@ -44,9 +44,7 @@ libraryDependencies ++= {
     "net.sourceforge.owlapi"      %  "owlapi-distribution"        % "4.2.7",
     "org.apache.jena"             %  "apache-jena-libs"           % "3.1.1" pomOnly(),
     "org.phenoscape"              %% "scowl"                      % "1.3.4",
-    "com.typesafe.scala-logging"  %% "scala-logging"              % "3.9.2",
-    "ch.qos.logback"              %  "logback-classic"            % "1.2.3",
-    "org.codehaus.groovy"         %  "groovy-all"                 % "2.4.6",
+    "com.outr"                    %% "scribe-slf4j"               % "2.7.10",
     "net.sourceforge.owlapi"      %  "org.semanticweb.hermit"     % "1.3.8.413" % Test,
     "org.scalatest"               %% "scalatest"                  % "3.0.8" % Test
   )
