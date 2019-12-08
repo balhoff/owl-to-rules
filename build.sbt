@@ -41,12 +41,12 @@ def parDependency(scalaVersion: String) = CrossVersion.partialVersion(scalaVersi
 
 libraryDependencies ++= {
   Seq(
-    "net.sourceforge.owlapi"      %  "owlapi-distribution"        % "4.2.9",
-    "org.apache.jena"             %  "apache-jena-libs"           % "3.1.1" pomOnly(),
+    "net.sourceforge.owlapi"      %  "owlapi-distribution"        % "4.2.7",
+    "org.apache.jena"             %  "apache-jena-libs"           % "3.13.1" pomOnly(),
     "org.phenoscape"              %% "scowl"                      % "1.3.4",
     "com.outr"                    %% "scribe-slf4j"               % "2.7.10",
     "net.sourceforge.owlapi"      %  "org.semanticweb.hermit"     % "1.3.8.413" % Test,
-    "org.scalatest"               %% "scalatest"                  % "3.0.8" % Test
+    "org.scalatest"               %% "scalatest"                  % "3.1.0" % Test
   )
 }
 
