@@ -35,7 +35,7 @@ fork in Test := true
 
 // parallel collections are split into a separate package only in 2.13
 def parDependency(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
-  case Some((2, 13)) => Seq("org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0")
+  case Some((2, 13)) => Seq("org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.2")
   case _             => Seq.empty
 }
 
