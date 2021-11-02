@@ -23,7 +23,7 @@ homepage := Some(url("https://github.com/balhoff/owl-to-rules"))
 
 scalaVersion  := "2.13.1"
 
-crossScalaVersions := Seq("2.12.10", "2.13.1")
+crossScalaVersions := Seq("2.12.15", "2.13.1")
 
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
 
@@ -35,18 +35,18 @@ fork in Test := true
 
 // parallel collections are split into a separate package only in 2.13
 def parDependency(scalaVersion: String) = CrossVersion.partialVersion(scalaVersion) match {
-  case Some((2, 13)) => Seq("org.scala-lang.modules" %% "scala-parallel-collections" % "0.2.0")
+  case Some((2, 13)) => Seq("org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4")
   case _             => Seq.empty
 }
 
 libraryDependencies ++= {
   Seq(
     "net.sourceforge.owlapi"      %  "owlapi-distribution"        % "4.5.20",
-    "org.apache.jena"             %  "apache-jena-libs"           % "3.13.1" pomOnly(),
+    "org.apache.jena"             %  "apache-jena-libs"           % "3.17.1" pomOnly(),
     "org.phenoscape"              %% "scowl"                      % "1.3.4",
-    "com.outr"                    %% "scribe-slf4j"               % "2.7.10",
+    "com.outr"                    %% "scribe-slf4j"               % "2.7.13",
     "net.sourceforge.owlapi"      %  "org.semanticweb.hermit"     % "1.3.8.413" % Test,
-    "org.scalatest"               %% "scalatest"                  % "3.1.0" % Test
+    "org.scalatest"               %% "scalatest"                  % "3.1.4" % Test
   )
 }
 
