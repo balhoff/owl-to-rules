@@ -44,7 +44,7 @@ libraryDependencies ++= {
     "net.sourceforge.owlapi"      %  "owlapi-distribution"        % "4.2.9",
     "org.apache.jena"             %  "apache-jena-libs"           % "3.17.0" pomOnly(),
     "org.phenoscape"              %% "scowl"                      % "1.3.4",
-    "com.outr"                    %% "scribe-slf4j"               % "3.6.3",
+    "com.outr"                    %% "scribe-slf4j"               % "3.6.4",
     "net.sourceforge.owlapi"      %  "org.semanticweb.hermit"     % "1.3.8.413" % Test,
     "org.scalatest"               %% "scalatest"                  % "3.2.10" % Test
   )
