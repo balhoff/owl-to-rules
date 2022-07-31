@@ -46,7 +46,7 @@ libraryDependencies ++= {
     "org.phenoscape"              %% "scowl"                      % "1.3.4",
     "com.outr"                    %% "scribe-slf4j"               % "3.6.3",
     "net.sourceforge.owlapi"      %  "org.semanticweb.hermit"     % "1.3.8.413" % Test,
-    "org.scalatest"               %% "scalatest"                  % "3.2.10" % Test
+    "org.scalatest"               %% "scalatest"                  % "3.2.13" % Test
   )
 }
 
