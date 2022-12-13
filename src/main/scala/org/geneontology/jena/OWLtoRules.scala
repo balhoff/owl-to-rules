@@ -1,8 +1,9 @@
 package org.geneontology.jena
 
+import com.typesafe.scalalogging.StrictLogging
+
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
-
 import org.apache.jena.reasoner.rulesys.Rule
 import org.geneontology.jena.SWRLUtil._
 import org.phenoscape.scowl._
@@ -13,7 +14,7 @@ import org.semanticweb.owlapi.model._
 import scala.collection.JavaConverters._
 import scala.collection.parallel.immutable.ParSet
 
-object OWLtoRules {
+object OWLtoRules extends StrictLogging {
 
   val IndirectType = "http://arachne.geneontology.org/indirect_type"
 
@@ -139,7 +140,7 @@ object OWLtoRules {
     case rule: SWRLRule => translateSWRLRule(rule)
 
     case _ => {
-      scribe.debug("Skipping: " + axiom)
+      logger.debug("Skipping: " + axiom)
       Set.empty
     }
 
