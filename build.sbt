@@ -46,7 +46,7 @@ libraryDependencies ++= {
     "org.phenoscape"              %% "scowl"                      % "1.3.4",
     "com.typesafe.scala-logging"  %% "scala-logging"              % "3.9.4",
     "net.sourceforge.owlapi"      %  "org.semanticweb.hermit"     % "1.3.8.413" % Test,
-    "org.scalatest"               %% "scalatest"                  % "3.2.10" % Test
+    "org.scalatest"               %% "scalatest"                  % "3.2.19" % Test
   )
 }
 
